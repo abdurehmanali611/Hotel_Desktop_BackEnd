@@ -56,7 +56,12 @@ const typeDefs = gql`
 
   type Mutation {
     Login(username: String!, password: String!): AuthPayload!
-    CreateCredential(username: String!, password: String!, role: String!, hotelName: String!): User!
+    CreateCredential(
+      username: String!
+      password: String!
+      role: String!
+      hotelName: String!
+    ): User!
     CreateItem(
       name: String!
       price: Float!
@@ -103,29 +108,29 @@ const authenticate = (req) => {
 
 const resolvers = {
   Query: {
-    users: async (_, {hotelName}, context) => {
-      if(!context.user) throw new Error("Not Authenticated");
+    users: async (_, { hotelName }, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
       return await prisma.user.findMany({
-        where: {hotelName: hotelName}
+        where: { hotelName: hotelName },
       });
     },
-    items: async (_, {hotelName}, context) => {
-      if(!context.user) throw new Error("Not Authenticated");
+    items: async (_, { hotelName }, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
       return await prisma.item.findMany({
-        where: {hotelName: hotelName}
+        where: { hotelName: hotelName },
       });
     },
-    orders: async (_, {hotelName}, context) => {
-      if(!context.user) throw new Error("Not Authenticated");
+    orders: async (_, { hotelName }, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
       return await prisma.order.findMany({
-        where: {hotelName: hotelName}
+        where: { hotelName: hotelName },
       });
     },
-    me: async (_, __, context ) => {
+    me: async (_, __, context) => {
       if (!context.user) throw new Error("Not Authenticated");
       return await prisma.user.findUnique({
         where: { id: context.user.userId },
-        select: { id: true, username: true, role: true, hotelName: true }
+        select: { id: true, username: true, role: true, hotelName: true },
       });
     },
   },
@@ -138,34 +143,45 @@ const resolvers = {
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) throw new Error("Invalid Password");
       const token = jwt.sign(
-        { userId: user.id, username: user.username, role: user.role, hotelName: user.hotelName },
+        {
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+          hotelName: user.hotelName,
+        },
         JWT_Secret,
         { expiresIn: "1d" }
       );
       return {
-        token, user: {
-            id: user.id,
-            username: user.username,
-            role: user.role,
-            hotelName: user.hotelName
-        }
-      }
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          hotelName: user.hotelName,
+        },
+      };
     },
     CreateCredential: async (_, { username, password, role, hotelName }) => {
-
-        const existingUser = await prisma.user.findUnique({where: {username}})
-        if (existingUser) throw new Error("User already Exists")
-        const hashedPassword = await bcrypt.hash(password, 12)
+      const existingUser = await prisma.user.findUnique({
+        where: { username },
+      });
+      if (existingUser) throw new Error("User already Exists");
+      const hashedPassword = await bcrypt.hash(password, 12);
       return await prisma.user.create({
         data: {
           username,
           password: hashedPassword,
           hotelName,
           role,
-        }
+        },
       });
     },
-    CreateItem: async (_, { name, price, category, imageUrl, hotelName }, context) => {
+    CreateItem: async (
+      _,
+      { name, price, category, imageUrl, hotelName },
+      context
+    ) => {
       if (!context.user) throw new Error("Not Authenticated");
       return await prisma.item.create({
         data: {
@@ -173,13 +189,25 @@ const resolvers = {
           price,
           category,
           imageUrl,
-          hotelName
+          hotelName,
         },
       });
     },
     OrderCreation: async (
       _,
-      { title, imageUrl, tableNo, waiterName, status, payment, category, price, hotelName, orderAmount }, context
+      {
+        title,
+        imageUrl,
+        tableNo,
+        waiterName,
+        status,
+        payment,
+        category,
+        price,
+        hotelName,
+        orderAmount,
+      },
+      context
     ) => {
       if (!context.user) throw new Error("Not Authenticated");
       return await prisma.order.create({
@@ -210,7 +238,11 @@ const resolvers = {
         where: { id: id },
       });
     },
-    UpdateItem: async (_, { id, name, category, price, imageUrl, hotelName }, context) => {
+    UpdateItem: async (
+      _,
+      { id, name, category, price, imageUrl, hotelName },
+      context
+    ) => {
       if (!context.user) throw new Error("Not Authenticated");
       return await prisma.item.update({
         where: { id: id },
@@ -219,7 +251,7 @@ const resolvers = {
           category,
           price,
           imageUrl,
-          hotelName
+          hotelName,
         },
       });
     },
@@ -242,14 +274,22 @@ async function startServer() {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    context: ({req}) => {
-        const user = authenticate(req)
-        return {user, prisma}
-    }
+    context: ({ req }) => {
+      const user = authenticate(req);
+      return { user, prisma };
+    },
   });
 
   await server.start();
   server.applyMiddleware({ app, path: "/graphql" });
+
+  app.get("/health", (req, res) => {
+    res.status(200).json({
+      status: "OK",
+      timestamp: new Date().toISOString(),
+      service: "GraphQL API",
+    });
+  });
 
   const port = 4000;
   app.listen(port, () => {
