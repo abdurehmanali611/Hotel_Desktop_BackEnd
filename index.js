@@ -47,11 +47,38 @@ const typeDefs = gql`
     createdAt: Float!
   }
 
+    type waiter {
+    id: Int!
+    name: String!
+    hotelName: String!
+    sex: String!
+    age: Int!
+    experience: Int!
+    phoneNumber: String!
+    price: [Float]
+    tablesServed: [Int]
+    payment: [String]
+    createdAt: Float!
+    }
+
+    type table {
+    id: Int!
+    tableNo: Int!
+    hotelName: String!
+    status: [String]
+    price: [Float]
+    payment: [String]
+    capacity: Int!
+    createdAt: Float!
+    }
+
   type Query {
     users(hotelName: String): [User!]!
     items(hotelName: String): [Item!]!
     orders(hotelName: String): [Order!]!
     me: User
+    waiters(hotelName: String): [waiter!]!
+    tables(hotelName: String): [table!]!
   }
 
   type Mutation {
@@ -92,6 +119,10 @@ const typeDefs = gql`
       hotelName: String!
     ): Item!
     UpdateStatus(id: Int!, status: String): Order!
+    CreateWaiter(name: String!, hotelName: String!, sex: String!, age: Int!, experience: Int!, phoneNumber: String!): waiter!
+    CreateTable(tableNo: Int!, hotelName: String!, capacity: Int!): table!
+    UpdatePaymentTable(id: Int!, payment: [String]!, price: [Float]!, hotelName: String!): table!
+    UpdatePaymentWaiter(id: Int!, payment: [String]!, price: [Float]!, tablesServed: [Int]!, hotelName: String!): waiter!
   }
 `;
 
@@ -133,6 +164,18 @@ const resolvers = {
         select: { id: true, username: true, role: true, hotelName: true },
       });
     },
+    waiters: async (_, { hotelName }, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
+      return await prisma.waiter.findMany({
+        where: { hotelName: hotelName },
+      });
+    },
+    tables: async (_, { hotelName }, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
+      return await prisma.table.findMany({
+        where: { hotelName: hotelName },
+      });
+    }
   },
   Mutation: {
     Login: async (_, { username, password }) => {
@@ -264,6 +307,43 @@ const resolvers = {
         },
       });
     },
+    CreateWaiter: async (_, { name, hotelName, age, sex, experience, phoneNumber}, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
+      return await prisma.waiter.create({
+        data: {
+          name,
+          hotelName,
+          age,
+          sex, 
+          experience,
+          phoneNumber,
+        },
+      });
+    },
+    CreateTable: async (_, { tableNo, hotelName, capacity}, context) => {
+      if (!context.user) throw new Error("Not Authenticated");
+      return await prisma.table.create({
+        data: {
+          tableNo,
+          hotelName,
+          capacity,
+        },
+      });
+    },
+    UpdatePaymentWaiter: async (_, {hotelName, payment, price, tablesServed, id}, context) => {
+      if (!context.user) throw new Error("Not Authenticated")
+      return await prisma.waiter.update({
+        where: {hotelName: hotelName, id: id},
+        data: {payment: payment, price: price, tablesServed: tablesServed}
+      })
+    },
+    UpdatePaymentTable: async (_, {id, payment, price, hotelName}, context) => {
+      if (!context.user) throw new Error("Not Authenticated")
+      return await prisma.table.update({
+        where: {id: id, hotelName: hotelName},
+        data: {payment: payment, price: price}
+      })
+    }
   },
 };
 
