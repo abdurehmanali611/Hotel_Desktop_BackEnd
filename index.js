@@ -271,6 +271,16 @@ const resolvers = {
       return isMatch;
     },
     CreateCredential: async (_, { UserName, Password, Role, HotelName }) => {
+      const existingUser = await prisma.user.findUnique({
+        where: { UserName: UserName },
+      });
+
+      if (existingUser) {
+        throw new Error(
+          "Username already exists. Please choose a different username."
+        );
+      }
+
       const hashedPassword = await bcrypt.hash(Password, 12);
       return await prisma.user.create({
         data: { UserName, Password: hashedPassword, HotelName, Role },
