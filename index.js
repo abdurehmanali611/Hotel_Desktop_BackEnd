@@ -101,6 +101,7 @@ const typeDefs = gql`
       Password: String!
       Role: String!
       HotelName: String!
+      LogoUrl: String
     ): User!
     CreateItem(
       name: String!
@@ -270,7 +271,10 @@ const resolvers = {
       const isMatch = await bcrypt.compare(passwordInput, admin.Password);
       return isMatch;
     },
-    CreateCredential: async (_, { UserName, Password, Role, HotelName }) => {
+    CreateCredential: async (
+      _,
+      { UserName, Password, Role, HotelName, LogoUrl }
+    ) => {
       const existingUser = await prisma.user.findUnique({
         where: { UserName: UserName },
       });
@@ -283,7 +287,7 @@ const resolvers = {
 
       const hashedPassword = await bcrypt.hash(Password, 12);
       return await prisma.user.create({
-        data: { UserName, Password: hashedPassword, HotelName, Role },
+        data: { UserName, Password: hashedPassword, HotelName, Role, LogoUrl },
       });
     },
     UpdateAdminCredential: async (_, { Password, HotelName }, context) => {
